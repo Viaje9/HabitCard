@@ -14,6 +14,7 @@
       /* 拖曳時的樣式 */
       .dragging {
         opacity: 0.5;
+        background-color: #e2e8f0;
       }
       /* 防止手機長按選取文字 */
       .no-select {
@@ -23,17 +24,17 @@
     </style>
   </head>
   <body
-    class="bg-slate-100 min-h-screen flex items-center justify-center p-4 font-sans text-slate-800"
+    class="bg-slate-100 min-h-screen flex items-start justify-center p-0 sm:p-0 font-sans text-slate-800"
   >
     <div
-      class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200"
+      class="w-full min-h-screen bg-slate-100 overflow-hidden sm:max-w-md sm:min-h-0 sm:rounded-2xl sm:shadow-xl sm:border sm:border-slate-200"
     >
       <!-- 標題區 -->
       <div
-        class="bg-slate-900 p-6 text-white flex justify-between items-center"
+        class="bg-slate-900 p-4 sm:p-6 text-white flex justify-between items-center"
       >
         <div>
-          <h1 class="text-xl font-bold tracking-wider">習慣紀錄卡</h1>
+          <h1 class="text-lg sm:text-xl font-bold tracking-wider">習慣紀錄卡</h1>
           <p class="text-slate-400 text-xs mt-1" id="current-date">
             <!-- 日期由 JS 填入 -->
           </p>
@@ -53,19 +54,19 @@
       <!-- 輸入區 -->
       <form
         onsubmit="addHabit(event)"
-        class="p-4 border-b border-slate-100 bg-slate-50"
+        class="p-3 sm:p-4 border-b border-slate-100 bg-slate-50"
       >
         <div class="flex gap-2">
           <input
             type="text"
             id="habit-input"
             placeholder="輸入新項目..."
-            class="flex-1 px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+            class="flex-1 px-4 py-2 text-base rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
             autocomplete="off"
           />
           <button
             type="submit"
-            class="bg-slate-900 hover:bg-slate-800 text-white p-2 rounded-lg transition-colors"
+            class="bg-slate-900 hover:bg-slate-800 text-white w-10 h-10 rounded-lg transition-colors flex items-center justify-center"
           >
             <i data-lucide="plus" class="w-6 h-6"></i>
           </button>
@@ -75,7 +76,7 @@
       <!-- 列表區 -->
       <div
         id="habit-list"
-        class="p-4 flex flex-col gap-3 min-h-[300px] max-h-[60vh] overflow-y-auto"
+        class="p-3 sm:p-4 flex flex-col gap-2 sm:gap-3 min-h-[220px] sm:min-h-[300px] max-h-[65vh] sm:max-h-[60vh] overflow-y-auto"
       >
         <!-- 列表項目將由 JS 渲染 -->
       </div>
@@ -101,6 +102,7 @@
       // --- 狀態管理 ---
       let habits = [];
       let dragSrcIndex = null;
+      let isTouchDragging = false;
 
       // 初始化
       document.addEventListener("DOMContentLoaded", () => {
@@ -231,7 +233,7 @@
         dragSrcIndex = parseInt(index);
 
         // 設定透明度
-        e.target.closest(".habit-row").classList.add("opacity-50");
+        e.target.closest(".habit-row").classList.add("dragging");
 
         // 必須設定 dataTransfer 才能在 Firefox 運作
         e.dataTransfer.effectAllowed = "move";
@@ -263,17 +265,68 @@
           // 因為 DOM 已經重建了
           const newRows = document.querySelectorAll(".habit-row");
           if (newRows[dragSrcIndex]) {
-            newRows[dragSrcIndex].classList.add("opacity-50");
+            newRows[dragSrcIndex].classList.add("dragging");
           }
         }
       }
 
       function handleDragEnd(e) {
-        // 移除所有 opacity 樣式
+        // 移除所有拖曳樣式
         document.querySelectorAll(".habit-row").forEach((row) => {
-          row.classList.remove("opacity-50");
+          row.classList.remove("dragging");
         });
         dragSrcIndex = null;
+      }
+
+      // --- 手機拖拉 (Touch) ---
+      function setupTouchDrag() {
+        const handles = document.querySelectorAll(".drag-handle");
+        handles.forEach((handle) => {
+          handle.addEventListener("touchstart", (e) => {
+            const row = e.target.closest(".habit-row");
+            if (!row) return;
+            dragSrcIndex = parseInt(row.dataset.index);
+            isTouchDragging = true;
+            row.classList.add("dragging");
+          });
+
+          handle.addEventListener("touchmove", (e) => {
+            if (!isTouchDragging) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(
+              touch.clientX,
+              touch.clientY
+            );
+            const targetRow = target?.closest(".habit-row");
+            if (!targetRow) return;
+            const targetIndex = parseInt(targetRow.dataset.index);
+            if (
+              dragSrcIndex !== null &&
+              !Number.isNaN(targetIndex) &&
+              dragSrcIndex !== targetIndex
+            ) {
+              const temp = habits[dragSrcIndex];
+              habits.splice(dragSrcIndex, 1);
+              habits.splice(targetIndex, 0, temp);
+              dragSrcIndex = targetIndex;
+              saveHabits();
+              render();
+              const newRows = document.querySelectorAll(".habit-row");
+              if (newRows[dragSrcIndex]) {
+                newRows[dragSrcIndex].classList.add("dragging");
+              }
+            }
+          });
+
+          handle.addEventListener("touchend", () => {
+            document.querySelectorAll(".habit-row").forEach((row) => {
+              row.classList.remove("dragging");
+            });
+            dragSrcIndex = null;
+            isTouchDragging = false;
+          });
+        });
       }
 
       // --- 渲染畫面 ---
@@ -318,7 +371,7 @@
                             draggable="true"
                             ondragstart="handleDragStart(event)"
                             ondragend="handleDragEnd(event)"
-                            class="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 p-1 hover:bg-black/5 rounded"
+                            class="drag-handle touch-none cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 p-2 sm:p-1 hover:bg-black/5 rounded"
                         >
                             <i data-lucide="grip-vertical" class="w-5 h-5 pointer-events-none"></i>
                         </div>
@@ -332,14 +385,14 @@
                                 ${iconHtml}
                             </div>
                             <div class="flex flex-col">
-                                <span class="font-medium text-lg ${
+                                <span class="font-medium text-base sm:text-lg ${
                                   habit.status === "none"
                                     ? "text-slate-700"
                                     : "text-slate-900"
                                 }">
                                     ${habit.text}
                                 </span>
-                                <span class="text-xs text-slate-500 font-medium">
+                                <span class="text-[11px] sm:text-xs text-slate-500 font-medium">
                                     ${config.label}
                                 </span>
                             </div>
@@ -348,7 +401,7 @@
                         <!-- 刪除按鈕 -->
                         <button
                             onclick="deleteHabit(${habit.id})"
-                            class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                            class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full"
                             title="刪除"
                         >
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -361,6 +414,7 @@
 
         // 重新渲染圖示
         lucide.createIcons();
+        setupTouchDrag();
       }
     </script>
   </body>
