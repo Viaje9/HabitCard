@@ -1,0 +1,9 @@
+{
+  "name": "習慣紀錄卡",
+  "short_name": "習慣卡",
+  "description": "簡單的習慣追蹤小卡。",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0f172a"
+}
